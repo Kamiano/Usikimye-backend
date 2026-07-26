@@ -1,0 +1,392 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+//////////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////////
+
+enum RoleName {
+  ADMIN
+  MANAGER
+  MONITORING_OFFICER
+  CASE_WORKER
+}
+
+enum SurvivorStatus {
+  SAFE_SPACE
+  AT_HOME
+  HOSPITALIZED
+  IMPRISONED
+  DECEASED
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CaseStatus {
+  NEW
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  ESCALATED
+  CLOSED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum PersonRole {
+  SURVIVOR
+  WITNESS
+  PERPETRATOR
+}
+
+enum ReferralType {
+  MEDICAL
+  LEGAL
+  COUNSELING
+  SHELTER
+  OTHER
+}
+
+enum ServiceType {
+  MEDICAL_SUPPORT
+  LEGAL_ASSISTANCE
+  SHELTER
+  COUNSELING
+  POLICE_ASSISTANCE
+  ECONOMIC_SUPPORT
+}
+
+//////////////////////////////////////////////////////
+// USERS & ROLES
+//////////////////////////////////////////////////////
+
+model Role {
+  id    String   @id @default(uuid())
+  name  RoleName @unique
+  users User[]
+}
+
+model User {
+  id           String    @id @default(uuid())
+  firstName    String
+  lastName     String
+  email        String    @unique
+  passwordHash String
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedCases       Case[]              @relation("AssignedCases")
+  createdTasks        Task[]              @relation("CreatedTasks")
+  incidentReports     IncidentReport[]
+  cases               Case[]
+  caseStatusHistories CaseStatusHistory[]
+  caseNotes           CaseNote[]
+  referrals           Referral[]
+  caseServices        CaseService[]
+  attachments         Attachment[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+}
+
+//////////////////////////////////////////////////////
+// INCIDENTS
+//////////////////////////////////////////////////////
+
+model IncidentType {
+  id        String           @id @default(uuid())
+  name      String           @unique
+  incidents IncidentReport[]
+}
+
+model IncidentReport {
+  id          String           @id @default(uuid())
+  title       String
+  description String
+  severity    IncidentSeverity @default(MEDIUM)
+
+  // --- TRAUMA-INFORMED FORM FIELDS ---
+  reportMethod       String? // "ANONYMOUS" or "CONTACT"
+  survivorStatus     SurvivorStatus?
+  survivorIdentity   String? // e.g., "Female Sex Worker", "Transman", "AGYW"
+  survivorIdentityOther String?
+  survivorName       String? // Optional / Pseudonym
+  survivorPhone      String? // Direct phone for follow-up if CONTACT method chosen
+  survivorAge        String?
+  survivorAgeGroup   String? // e.g., "18-24", "25-34"
+  targetType         String? // "INDIVIDUAL" or "GROUP"
+  perpetrator        String?
+  perpetratorCategory String? // e.g., "POLICE", "CLIENT", "INTIMATE_PARTNER", "COMMUNITY_MEMBER"
+  perpetratorDetails  String? // Optional notes or names of perpetrator
+  servicesAccessed   String? // e.g., "Medical Care, Police Report"
+  immediateDanger    Boolean @default(false)
+  safeCallbackWindow String? // e.g., "Morning (8am - 12pm)"
+  consentToFollowUp  Boolean @default(true) // Explicit consent check from form
+  reporterName       String?
+  reporterPhone      String?
+  preferredContactChannel String?
+  relationshipToSurvivor String?
+
+  // --- LOCATION & TIMING ---
+  county       String
+  subCounty    String
+  location     String? // Specific landmark or village
+  incidentDate DateTime
+
+  // --- RELATIONS ---
+  reportedById String?
+  reportedBy   User?   @relation(fields: [reportedById], references: [id])
+
+  incidentTypeId String
+  incidentType   IncidentType @relation(fields: [incidentTypeId], references: [id])
+
+  case Case?
+
+  persons     IncidentPerson[]
+  attachments Attachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+//////////////////////////////////////////////////////
+// CASES
+//////////////////////////////////////////////////////
+
+model Case {
+  id         String @id @default(uuid())
+  caseNumber String @unique
+
+  incidentId String         @unique
+  incident   IncidentReport @relation(fields: [incidentId], references: [id])
+
+  status CaseStatus @default(NEW)
+
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedCases", fields: [assignedToId], references: [id])
+
+  verifiedById String?
+  verifiedBy   User?   @relation(fields: [verifiedById], references: [id])
+
+  closedAt DateTime?
+
+  notes         CaseNote[]
+  tasks         Task[]
+  referrals     Referral[]
+  services      CaseService[]
+  statusHistory CaseStatusHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CaseStatusHistory {
+  id String @id @default(uuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  status      CaseStatus
+  changedById String?
+  changedBy   User?   @relation(fields: [changedById], references: [id])
+
+  note String?
+
+  createdAt DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// PERSONS (FLEXIBLE MODEL)
+//////////////////////////////////////////////////////
+
+model Person {
+  id       String  @id @default(uuid())
+  fullName String
+  phone    String?
+  email    String?
+  age      Int?
+  gender   String?
+
+  incidents IncidentPerson[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  caseServices CaseService[]
+}
+
+model IncidentPerson {
+  id String @id @default(uuid())
+
+  incidentId String
+  incident   IncidentReport @relation(fields: [incidentId], references: [id])
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+
+  role PersonRole
+
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([incidentId, personId, role])
+}
+
+//////////////////////////////////////////////////////
+// CASE NOTES
+//////////////////////////////////////////////////////
+
+model CaseNote {
+  id     String @id @default(uuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  note String
+
+  createdAt DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// TASKS
+//////////////////////////////////////////////////////
+
+model Task {
+  id String @id @default(uuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  title       String
+  description String?
+
+  status TaskStatus @default(PENDING)
+
+  dueDate DateTime?
+
+  assignedToId String?
+  assignedTo   User?   @relation("CreatedTasks", fields: [assignedToId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// REFERRALS
+//////////////////////////////////////////////////////
+
+model Referral {
+  id String @id @default(uuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  referralType     ReferralType
+  organizationName String
+
+  notes   String?
+  outcome String?
+
+  referredById String
+  referredBy   User   @relation(fields: [referredById], references: [id])
+
+  referralDate DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// CASE SERVICES / OUTCOMES
+//////////////////////////////////////////////////////
+
+model CaseService {
+  id String @id @default(uuid())
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  personId String?
+  person   Person? @relation(fields: [personId], references: [id])
+
+  serviceType ServiceType
+
+  description String?
+
+  providedById String
+  providedBy   User   @relation(fields: [providedById], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// ATTACHMENTS
+//////////////////////////////////////////////////////
+
+model Attachment {
+  id String @id @default(uuid())
+
+  incidentId String?
+  incident   IncidentReport? @relation(fields: [incidentId], references: [id])
+
+  fileName String
+  fileUrl  String
+  fileType String
+
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// NOTIFICATIONS
+//////////////////////////////////////////////////////
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  title   String
+  message String
+  isRead  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// AUDIT LOGS
+//////////////////////////////////////////////////////
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  action     String
+  entityType String
+  entityId   String?
+
+  createdAt DateTime @default(now())
+}
