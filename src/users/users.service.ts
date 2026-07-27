@@ -48,7 +48,7 @@ export class UsersService {
       });
     }
 
-    const passwordHash = await bcrypt.hash(dto.password || 'Kiaswa123!', 10);
+    const passwordHash = await bcrypt.hash(dto.password || 'Usikimye123!', 10);
 
     const createdUser = await this.prisma.user.create({
       data: {
@@ -73,7 +73,7 @@ export class UsersService {
       }
     });
 
-    const plainTextPassword = dto.password || 'Kiaswa123!';
+    const plainTextPassword = dto.password || 'Usikimye123!';
     this.mailService.sendWelcomeEmail({
       email: createdUser.email,
       firstName: createdUser.firstName,
