@@ -133,7 +133,7 @@ export class MailService {
 
                 <!-- Primary CTA Button -->
                 <div style="text-align: left; margin-bottom: 28px;">
-                  <a href="${appUrl}/admin" target="_blank" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-size: 13px; font-weight: 500; text-decoration: none; padding: 12px 28px; border-radius: 6px; letter-spacing: 0.01em;">
+                  <a href="${appUrl}/admin/dashboard" target="_blank" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-size: 13px; font-weight: 500; text-decoration: none; padding: 12px 28px; border-radius: 6px; letter-spacing: 0.01em;">
                     Access FACE Dashboard &rarr;
                   </a>
                 </div>
