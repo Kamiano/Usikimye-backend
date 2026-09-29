@@ -387,6 +387,7 @@ model AuditLog {
   action     String
   entityType String
   entityId   String?
+  details    String?
 
   createdAt DateTime @default(now())
 }

@@ -54,7 +54,8 @@ export class MailService {
       const response = await this.resend.emails.send({
         from: fromSender,
         to: email,
-        subject: 'Congratulations & Welcome to FACE Platform – Account Credentials',
+        subject:
+          'Congratulations & Welcome to FACE Platform – Account Credentials',
         html: `
         <!DOCTYPE html>
         <html lang="en">
@@ -213,6 +214,297 @@ export class MailService {
     } catch (error) {
       this.logger.error(`Resend API dispatch failed for ${email}:`, error);
       throw error;
+    }
+  }
+
+  async sendSuperAdminIncidentNotification(payload: {
+    bccEmails: string[];
+    reportId: string;
+    caseNumber: string;
+    title: string;
+    severity: string;
+    county?: string;
+    subCounty?: string;
+    createdAt: Date;
+  }) {
+    const {
+      bccEmails,
+      reportId,
+      caseNumber,
+      title,
+      severity,
+      county,
+      subCounty,
+      createdAt,
+    } = payload;
+    if (!bccEmails || bccEmails.length === 0) {
+      this.logger.warn(
+        'No Super Admin email addresses provided for incident notification.',
+      );
+      return;
+    }
+
+    const fromSender =
+      process.env.RESEND_FROM_EMAIL ||
+      'FACE Platform <support@face-usikimye.com>';
+    const appUrl = process.env.FRONTEND_URL || 'https://face-usikimye.com';
+    const formattedDate = new Date(createdAt).toLocaleString('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'UTC',
+    });
+
+    const locationText =
+      [county, subCounty].filter(Boolean).join(', ') || 'N/A';
+
+    try {
+      const response = await this.resend.emails.send({
+        from: fromSender,
+        to: fromSender, // Send main to fromSender, actual admins via bcc for privacy safeguards
+        bcc: bccEmails,
+        subject: `[FACE Platform] New Incident Report Submitted - Reference #${caseNumber}`,
+        html: `
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>New Incident Report Submitted</title>
+          </head>
+          <body style="background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 48px 16px; -webkit-font-smoothing: antialiased;">
+            <div style="max-width: 540px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);">
+              
+              <!-- Header Branding -->
+              <div style="padding: 32px 32px 0 32px;">
+                <table width="100%" cellPadding="0" cellSpacing="0" border="0">
+                  <tr>
+                    <td align="left">
+                      <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #dc2626; border-left: 2px solid #dc2626; padding-left: 8px;">
+                        System Alert &bull; New Incident Report
+                      </span>
+                    </td>
+                  </tr>
+                </table>
+                <h1 style="color: #0f172a; margin: 20px 0 0 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; line-height: 28px;">
+                  Incident Submission Notice
+                </h1>
+              </div>
+
+              <!-- Main Content Body -->
+              <div style="padding: 16px 32px 32px 32px; color: #334155;">
+                <p style="font-size: 14px; line-height: 22px; color: #475569; margin: 0 0 20px 0;">
+                  A new incident report has been registered on the <strong>FACE Platform</strong> and requires administrator review.
+                </p>
+
+                <!-- Details Card -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                  <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px;">
+                    Report Summary
+                  </div>
+
+                  <div style="font-size: 13px; color: #334155; margin-bottom: 10px; display: table; width: 100%;">
+                    <span style="color: #64748b; display: table-cell; width: 130px;">Case Reference:</span>
+                    <strong style="color: #0f172a; font-weight: 600; display: table-cell;">${caseNumber}</strong>
+                  </div>
+
+                  <div style="font-size: 13px; color: #334155; margin-bottom: 10px; display: table; width: 100%;">
+                    <span style="color: #64748b; display: table-cell; width: 130px;">Title / Category:</span>
+                    <span style="color: #0f172a; font-weight: 500; display: table-cell;">${title}</span>
+                  </div>
+
+                  <div style="font-size: 13px; color: #334155; margin-bottom: 10px; display: table; width: 100%;">
+                    <span style="color: #64748b; display: table-cell; width: 130px;">Severity Level:</span>
+                    <span style="display: table-cell;">
+                      <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; background-color: ${severity === 'CRITICAL' || severity === 'HIGH' ? '#fef2f2' : '#f1f5f9'}; color: ${severity === 'CRITICAL' || severity === 'HIGH' ? '#991b1b' : '#334155'}; border: 1px solid ${severity === 'CRITICAL' || severity === 'HIGH' ? '#fecaca' : '#cbd5e1'};">
+                        ${severity}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div style="font-size: 13px; color: #334155; margin-bottom: 10px; display: table; width: 100%;">
+                    <span style="color: #64748b; display: table-cell; width: 130px;">Location:</span>
+                    <span style="color: #0f172a; display: table-cell;">${locationText}</span>
+                  </div>
+
+                  <div style="font-size: 13px; color: #334155; margin-bottom: 0; display: table; width: 100%;">
+                    <span style="color: #64748b; display: table-cell; width: 130px;">Submitted At:</span>
+                    <span style="color: #0f172a; display: table-cell;">${formattedDate} UTC</span>
+                  </div>
+                </div>
+
+                <!-- Call to Action -->
+                <div style="text-align: left; margin-bottom: 24px;">
+                  <a href="${appUrl}/admin/reports/${reportId}" target="_blank" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-size: 13px; font-weight: 500; text-decoration: none; padding: 12px 24px; border-radius: 6px; letter-spacing: 0.01em;">
+                    View Case in Admin Dashboard &rarr;
+                  </a>
+                </div>
+
+                <p style="font-size: 12px; line-height: 18px; color: #94a3b8; margin: 0;">
+                  This is an automated operational alert sent to active platform Super Administrators.
+                </p>
+              </div>
+
+              <!-- Footer -->
+              <div style="background-color: #f8fafc; border-top: 1px solid #f1f5f9; padding: 16px 32px; text-align: left;">
+                <p style="font-size: 11px; color: #94a3b8; margin: 0; line-height: 16px;">
+                  &copy; ${new Date().getFullYear()} FACE — Femicide Accountability & Community Empowerment.
+                </p>
+              </div>
+
+            </div>
+          </body>
+        </html>
+      `,
+      });
+
+      this.logger.log(
+        `Super Admin incident notification successfully dispatched to ${bccEmails.length} admin(s) for Case #${caseNumber}`,
+      );
+      return response;
+    } catch (error) {
+      this.logger.error(
+        `Resend API dispatch failed for Super Admin notification (Case #${caseNumber}):`,
+        error,
+      );
+    }
+  }
+
+  async sendCaseAssignmentNotification(payload: {
+    assigneeEmail: string;
+    assigneeName: string;
+    assignorName: string;
+    caseId: string;
+    caseNumber: string;
+    severity?: string;
+    assignedAt: Date;
+  }) {
+    const {
+      assigneeEmail,
+      assigneeName,
+      assignorName,
+      caseId,
+      caseNumber,
+      severity = 'MEDIUM',
+      assignedAt,
+    } = payload;
+
+    const fromSender =
+      process.env.RESEND_FROM_EMAIL ||
+      'FACE Platform <support@face-usikimye.com>';
+    const appUrl = process.env.FRONTEND_URL || 'https://face-usikimye.com';
+    const formattedDate = new Date(assignedAt).toLocaleString('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'UTC',
+    });
+
+    try {
+      const response = await this.resend.emails.send({
+        from: fromSender,
+        to: assigneeEmail,
+        subject: `[FACE Platform] Case Assigned: #${caseNumber}`,
+        html: `
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Case Assignment Notice</title>
+          </head>
+          <body style="background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 48px 16px; -webkit-font-smoothing: antialiased;">
+            <div style="max-width: 540px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);">
+              
+              <!-- Header Branding -->
+              <div style="padding: 32px 32px 0 32px;">
+                <table width="100%" cellPadding="0" cellSpacing="0" border="0">
+                  <tr>
+                    <td align="left">
+                      <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #2563eb; border-left: 2px solid #2563eb; padding-left: 8px;">
+                        FACE Platform &bull; Case Management
+                      </span>
+                    </td>
+                  </tr>
+                </table>
+                <h1 style="color: #0f172a; margin: 20px 0 0 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; line-height: 28px;">
+                  Case Assignment Notice
+                </h1>
+              </div>
+
+              <!-- Main Content Body -->
+              <div style="padding: 16px 32px 32px 32px; color: #334155;">
+                <p style="font-size: 14px; line-height: 22px; color: #475569; margin: 0 0 16px 0;">
+                  Hello <strong>${assigneeName}</strong>,
+                </p>
+                <p style="font-size: 14px; line-height: 22px; color: #475569; margin: 0 0 20px 0;">
+                  You have been assigned Case <strong>#${caseNumber}</strong> by <strong>${assignorName}</strong> for triage and management.
+                </p>
+
+                <!-- Case Highlights Card -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                  <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px;">
+                    Assignment Details
+                  </div>
+
+                  <div style="font-size: 13px; color: #334155; margin-bottom: 10px; display: table; width: 100%;">
+                    <span style="color: #64748b; display: table-cell; width: 140px;">Case Reference:</span>
+                    <strong style="color: #0f172a; font-weight: 600; display: table-cell;">#${caseNumber}</strong>
+                  </div>
+
+                  <div style="font-size: 13px; color: #334155; margin-bottom: 10px; display: table; width: 100%;">
+                    <span style="color: #64748b; display: table-cell; width: 140px;">Assigned By:</span>
+                    <span style="color: #0f172a; font-weight: 500; display: table-cell;">${assignorName}</span>
+                  </div>
+
+                  <div style="font-size: 13px; color: #334155; margin-bottom: 10px; display: table; width: 100%;">
+                    <span style="color: #64748b; display: table-cell; width: 140px;">Priority / Severity:</span>
+                    <span style="display: table-cell;">
+                      <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; background-color: ${severity === 'CRITICAL' || severity === 'HIGH' ? '#fef2f2' : '#f1f5f9'}; color: ${severity === 'CRITICAL' || severity === 'HIGH' ? '#991b1b' : '#334155'}; border: 1px solid ${severity === 'CRITICAL' || severity === 'HIGH' ? '#fecaca' : '#cbd5e1'};">
+                        ${severity}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div style="font-size: 13px; color: #334155; margin-bottom: 0; display: table; width: 100%;">
+                    <span style="color: #64748b; display: table-cell; width: 140px;">Assigned Timestamp:</span>
+                    <span style="color: #0f172a; display: table-cell;">${formattedDate} UTC</span>
+                  </div>
+                </div>
+
+                <!-- Primary CTA Button -->
+                <div style="text-align: left; margin-bottom: 24px;">
+                  <a href="${appUrl}/admin/cases/${caseId}" target="_blank" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-size: 13px; font-weight: 500; text-decoration: none; padding: 12px 24px; border-radius: 6px; letter-spacing: 0.01em;">
+                    View & Manage Case &rarr;
+                  </a>
+                </div>
+
+                <p style="font-size: 12px; line-height: 18px; color: #94a3b8; margin: 0;">
+                  Security Note: Case details and sensitive survivor information are safeguarded within the platform workspace.
+                </p>
+              </div>
+
+              <!-- Footer -->
+              <div style="background-color: #f8fafc; border-top: 1px solid #f1f5f9; padding: 16px 32px; text-align: left;">
+                <p style="font-size: 11px; color: #94a3b8; margin: 0; line-height: 16px;">
+                  &copy; ${new Date().getFullYear()} FACE — Femicide Accountability & Community Empowerment.<br/>
+                  This is an automated operational notification dispatched to ${assigneeEmail}.
+                </p>
+              </div>
+
+            </div>
+          </body>
+        </html>
+      `,
+      });
+
+      this.logger.log(
+        `Case assignment email successfully dispatched to ${assigneeEmail} for Case #${caseNumber} (Assigned by ${assignorName})`,
+      );
+      return response;
+    } catch (error) {
+      this.logger.error(
+        `Failed to send case assignment email to ${assigneeEmail} for Case #${caseNumber}:`,
+        error,
+      );
     }
   }
 }

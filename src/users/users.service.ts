@@ -8,7 +8,7 @@ export class UsersService {
   constructor(
     private prisma: PrismaService,
     private mailService: MailService,
-  ) { }
+  ) {}
 
   async findById(id: string) {
     return this.prisma.user.findUnique({
@@ -35,16 +35,22 @@ export class UsersService {
     });
   }
 
-  async create(dto: { firstName: string; lastName: string; email: string; roleName: string; password?: string }) {
+  async create(dto: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    roleName: string;
+    password?: string;
+  }) {
     // Resolve database role by name
     const dbRoleName = dto.roleName.toUpperCase() as any; // e.g. ADMIN, MANAGER, MONITORING_OFFICER, CASE_WORKER
     let role = await this.prisma.role.findUnique({
-      where: { name: dbRoleName }
+      where: { name: dbRoleName },
     });
 
     if (!role) {
       role = await this.prisma.role.create({
-        data: { name: dbRoleName }
+        data: { name: dbRoleName },
       });
     }
 
@@ -70,18 +76,20 @@ export class UsersService {
             name: true,
           },
         },
-      }
+      },
     });
 
     const plainTextPassword = dto.password || 'Usikimye123!';
-    this.mailService.sendWelcomeEmail({
-      email: createdUser.email,
-      firstName: createdUser.firstName,
-      roleName: dto.roleName.toUpperCase(),
-      password: plainTextPassword
-    }).catch(err => {
-      console.error('Mailing Pipeline Log -> Dispatch failed:', err.message);
-    });
+    this.mailService
+      .sendWelcomeEmail({
+        email: createdUser.email,
+        firstName: createdUser.firstName,
+        roleName: dto.roleName.toUpperCase(),
+        password: plainTextPassword,
+      })
+      .catch((err) => {
+        console.error('Mailing Pipeline Log -> Dispatch failed:', err.message);
+      });
 
     return createdUser;
   }
@@ -108,9 +116,14 @@ export class UsersService {
       select: { id: true, email: true, firstName: true, isActive: true },
     });
 
-    this.mailService.sendSuspensionEmail(user.email, user.firstName).catch(err => {
-      console.error('Mailing Pipeline Log -> Suspension dispatch failed:', err.message);
-    });
+    this.mailService
+      .sendSuspensionEmail(user.email, user.firstName)
+      .catch((err) => {
+        console.error(
+          'Mailing Pipeline Log -> Suspension dispatch failed:',
+          err.message,
+        );
+      });
 
     return user;
   }
@@ -119,7 +132,7 @@ export class UsersService {
     // First get the user to get email and firstName
     const user = await this.prisma.user.findUnique({
       where: { id },
-      select: { email: true, firstName: true }
+      select: { email: true, firstName: true },
     });
 
     const deletedUser = await this.prisma.user.delete({
@@ -127,9 +140,14 @@ export class UsersService {
     });
 
     if (user) {
-      this.mailService.sendDeletionEmail(user.email, user.firstName).catch(err => {
-        console.error('Mailing Pipeline Log -> Deletion dispatch failed:', err.message);
-      });
+      this.mailService
+        .sendDeletionEmail(user.email, user.firstName)
+        .catch((err) => {
+          console.error(
+            'Mailing Pipeline Log -> Deletion dispatch failed:',
+            err.message,
+          );
+        });
     }
 
     return deletedUser;

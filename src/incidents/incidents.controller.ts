@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  Query,
+  Res,
+} from '@nestjs/common';
+import { Response } from 'express';
 import { IncidentsService } from './incidents.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -32,8 +44,48 @@ export class IncidentsController {
   @Roles(RoleName.ADMIN, RoleName.MANAGER)
   async updateCase(
     @Param('id') incidentId: string,
-    @Body() updateDto: { status?: CaseStatus; assignedToId?: string; note?: string }
+    @Body()
+    updateDto: { status?: CaseStatus; assignedToId?: string; note?: string },
+    @Request() req: any,
   ) {
-    return this.incidentsService.updateCase(incidentId, updateDto);
+    return this.incidentsService.updateCase(
+      incidentId,
+      updateDto,
+      req?.user?.userId,
+    );
+  }
+
+  @Get(':id/export')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(
+    RoleName.ADMIN,
+    RoleName.MANAGER,
+    RoleName.CASE_WORKER,
+    RoleName.MONITORING_OFFICER,
+  )
+  async exportPdf(
+    @Param('id') incidentId: string,
+    @Query('redactPII') redactPII: string,
+    @Request() req: any,
+    @Res() res: any,
+  ) {
+    const isRedacted = redactPII === 'true' || redactPII === '1';
+    const clientIp =
+      req.ip ||
+      req.headers['x-forwarded-for'] ||
+      req.socket.remoteAddress ||
+      '127.0.0.1';
+
+    const { pdfBuffer, filename } = await this.incidentsService.exportPdf(
+      incidentId,
+      req.user,
+      Array.isArray(clientIp) ? clientIp[0] : clientIp,
+      isRedacted,
+    );
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.end(pdfBuffer);
   }
 }

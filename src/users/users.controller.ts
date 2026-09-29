@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, UseGuards, Patch, Req, Delete, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Patch,
+  Req,
+  Delete,
+  Param,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
@@ -8,7 +18,7 @@ import { RoleName } from '@prisma/client';
 @Controller('users')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
@@ -25,15 +35,29 @@ export class UsersController {
   @Post()
   @Roles(RoleName.ADMIN)
   async create(
-    @Body() body: { firstName: string; lastName: string; email: string; roleName: string; password?: string }
+    @Body()
+    body: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      roleName: string;
+      password?: string;
+    },
   ) {
     return this.usersService.create(body);
   }
 
   @Patch('change-password')
   @UseGuards(AuthGuard('jwt'))
-  async changePassword(@Req() req: any, @Body() body: { currentPass: string; newPass: string }) {
-    return this.usersService.changePassword(req.user.userId, body.currentPass, body.newPass);
+  async changePassword(
+    @Req() req: any,
+    @Body() body: { currentPass: string; newPass: string },
+  ) {
+    return this.usersService.changePassword(
+      req.user.userId,
+      body.currentPass,
+      body.newPass,
+    );
   }
 
   @Roles(RoleName.ADMIN)
@@ -54,4 +78,3 @@ export class UsersController {
     return this.usersService.delete(id);
   }
 }
-
