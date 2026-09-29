@@ -35,11 +35,23 @@ enum IncidentSeverity {
 
 enum CaseStatus {
   NEW
+  UNDER_TRIAGE
+  CONTACT_ESTABLISHED
+  REFERRAL_MADE
   UNDER_REVIEW
   VERIFIED
   REJECTED
   ESCALATED
+  RESOLVED
   CLOSED
+}
+
+enum InterventionCategory {
+  DIRECT_CONTACT
+  MEDICAL_REFERRAL
+  LEGAL_SUPPORT
+  SHELTER_PROTECTION
+  GENERAL_NOTE
 }
 
 enum TaskStatus {
@@ -102,6 +114,7 @@ model User {
   cases               Case[]
   caseStatusHistories CaseStatusHistory[]
   caseNotes           CaseNote[]
+  interventions       CaseIntervention[]
   referrals           Referral[]
   caseServices        CaseService[]
   attachments         Attachment[]
@@ -191,6 +204,7 @@ model Case {
   closedAt DateTime?
 
   notes         CaseNote[]
+  interventions CaseIntervention[]
   tasks         Task[]
   referrals     Referral[]
   services      CaseService[]
@@ -267,6 +281,21 @@ model CaseNote {
   note String
 
   createdAt DateTime @default(now())
+}
+
+//////////////////////////////////////////////////////
+// CASE INTERVENTIONS
+//////////////////////////////////////////////////////
+
+model CaseIntervention {
+  id       String               @id @default(uuid())
+  caseId   String
+  case     Case                 @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User                 @relation(fields: [authorId], references: [id])
+  category InterventionCategory @default(GENERAL_NOTE)
+  noteText String
+  createdAt DateTime            @default(now())
 }
 
 //////////////////////////////////////////////////////

@@ -391,6 +391,22 @@ export class IncidentsService {
               },
               orderBy: { createdAt: 'desc' },
             },
+            interventions: {
+              include: {
+                author: {
+                  select: { firstName: true, lastName: true, email: true },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
+            statusHistory: {
+              include: {
+                changedBy: {
+                  select: { firstName: true, lastName: true },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
             assignedTo: {
               select: {
                 id: true,
@@ -496,6 +512,8 @@ export class IncidentsService {
         : undefined,
       assignedHandlerEmail: caseRecord.assignedTo?.email,
       notes: caseRecord.notes,
+      interventions: (caseRecord as any).interventions,
+      statusHistory: (caseRecord as any).statusHistory,
     };
 
     const pdfBuffer = await this.pdfGeneratorService.generateCasePdf(

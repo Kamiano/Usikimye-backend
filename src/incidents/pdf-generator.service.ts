@@ -31,6 +31,19 @@ export interface CasePdfData {
     createdAt: Date;
     user?: { firstName: string; lastName: string };
   }[];
+  interventions?: {
+    id?: string;
+    category: string;
+    noteText: string;
+    createdAt: Date;
+    author?: { firstName: string; lastName: string; email?: string };
+  }[];
+  statusHistory?: {
+    status: string;
+    note?: string | null;
+    createdAt: Date;
+    changedBy?: { firstName: string; lastName: string };
+  }[];
 }
 
 export interface WatermarkOptions {
@@ -71,12 +84,12 @@ export class PdfGeneratorService {
           .fillColor('#0F172A')
           .fontSize(20)
           .font('Helvetica-Bold')
-          .text('FACE PLATFORM', { align: 'left' });
+          .text('FACE PLATFORM - CASE WORKSPACE REPORT', { align: 'left' });
         doc
           .fillColor('#64748B')
           .fontSize(9)
           .font('Helvetica')
-          .text('Incident Response & Case Management System', {
+          .text('Complete Lifecycle Documentation: Reporter Intake + Handler Interventions', {
             align: 'left',
           });
         doc.moveDown(0.8);
@@ -96,7 +109,7 @@ export class PdfGeneratorService {
           .fontSize(8.5)
           .font('Helvetica-Bold')
           .text(
-            'CONFIDENTIAL — OFFICIAL USE ONLY. This document contains privileged incident response data. Unauthorized copying or redistribution is strictly prohibited.',
+            'CONFIDENTIAL — OFFICIAL USE ONLY. This document contains privileged incident response & intervention data. Unauthorized copying or redistribution is strictly prohibited.',
             bannerX + 10,
             bannerY + 8,
             { width: bannerWidth - 20, align: 'center' },
@@ -177,7 +190,7 @@ export class PdfGeneratorService {
                 bg = '#FEF2F2';
                 border = '#FECACA';
                 textClr = '#991B1B';
-              } else if (cell.val === 'VERIFIED' || cell.val === 'CLOSED') {
+              } else if (cell.val === 'VERIFIED' || cell.val === 'CLOSED' || cell.val === 'RESOLVED') {
                 bg = '#F0FDF4';
                 border = '#BBF7D0';
                 textClr = '#166534';
@@ -209,14 +222,16 @@ export class PdfGeneratorService {
 
         doc.y = gridY + gridHeight + 20;
 
-        // Section 1: Incident Overview
-        this.renderSectionHeader(doc, '1. Incident Overview');
+        // ==========================================
+        // PART 1: REPORTER INTAKE RECORD
+        // ==========================================
+        this.renderSectionHeader(doc, 'PART 1: REPORTER INTAKE RECORD');
 
         doc
           .fillColor('#64748B')
           .fontSize(8.5)
           .font('Helvetica-Bold')
-          .text('TITLE: ', { continued: true })
+          .text('INCIDENT TITLE: ', { continued: true })
           .fillColor('#0F172A')
           .font('Helvetica')
           .text(caseData.reportTitle);
@@ -248,9 +263,7 @@ export class PdfGeneratorService {
 
         doc.y = calloutY + calloutHeight + 16;
 
-        // Section 2: Intake & Demographics Table
-        this.renderSectionHeader(doc, '2. Intake & Demographics');
-
+        // Intake & Demographics Table
         const demoRows = [
           [
             { label: 'Survivor Name', val: mask(caseData.survivorName) },
@@ -299,28 +312,79 @@ export class PdfGeneratorService {
           doc.moveDown(0.8);
         });
 
-        // Section 3: Triage Notes (If available)
-        if (caseData.notes && caseData.notes.length > 0) {
-          doc.moveDown(0.5);
-          this.renderSectionHeader(doc, '3. Case Triage Notes');
-          caseData.notes.forEach((n) => {
-            const author = n.user
-              ? `${n.user.firstName} ${n.user.lastName}`
-              : 'System Handler';
-            const dateStr = new Date(n.createdAt).toLocaleDateString('en-US');
-            const noteContent = redactPII ? '[REDACTED NOTE CONTENT]' : n.note;
+        // ==========================================
+        // PART 2: HANDLER INTERVENTION & RESOLUTION HISTORY
+        // ==========================================
+        doc.moveDown(1);
+        this.renderSectionHeader(doc, 'PART 2: HANDLER INTERVENTION & RESOLUTION HISTORY');
+
+        // Logged Interventions Table
+        if (caseData.interventions && caseData.interventions.length > 0) {
+          doc
+            .fillColor('#475569')
+            .fontSize(9)
+            .font('Helvetica-Bold')
+            .text('Action & Intervention Log Entries');
+          doc.moveDown(0.4);
+
+          caseData.interventions.forEach((intv) => {
+            const authorName = intv.author
+              ? `${intv.author.firstName} ${intv.author.lastName}`
+              : 'Assigned Handler';
+            const dateStr = new Date(intv.createdAt).toLocaleString('en-US');
+            const noteText = redactPII ? '[REDACTED INTERVENTION NOTE]' : intv.noteText;
 
             doc
-              .fillColor('#64748B')
-              .fontSize(8)
+              .fillColor('#1E293B')
+              .fontSize(8.5)
               .font('Helvetica-Bold')
-              .text(`${author} (${dateStr}): `);
+              .text(`[${intv.category.replace(/_/g, ' ')}] `, { continued: true })
+              .fillColor('#64748B')
+              .font('Helvetica')
+              .text(`by ${authorName} on ${dateStr}`);
+            
             doc
               .fillColor('#334155')
               .fontSize(8.5)
               .font('Helvetica')
-              .text(noteContent);
-            doc.moveDown(0.4);
+              .text(noteText, { indent: 10 });
+            doc.moveDown(0.5);
+          });
+        } else {
+          doc
+            .fillColor('#94A3B8')
+            .fontSize(8.5)
+            .font('Helvetica-Oblique')
+            .text('No handler intervention records logged yet.');
+          doc.moveDown(0.6);
+        }
+
+        // Stage Progression Timeline
+        if (caseData.statusHistory && caseData.statusHistory.length > 0) {
+          doc.moveDown(0.5);
+          doc
+            .fillColor('#475569')
+            .fontSize(9)
+            .font('Helvetica-Bold')
+            .text('Stage Progression Timeline & Status Changes');
+          doc.moveDown(0.4);
+
+          caseData.statusHistory.forEach((hist) => {
+            const changedBy = hist.changedBy
+              ? `${hist.changedBy.firstName} ${hist.changedBy.lastName}`
+              : 'System Triage';
+            const dateStr = new Date(hist.createdAt).toLocaleString('en-US');
+            const noteStr = hist.note ? ` — Note: ${hist.note}` : '';
+
+            doc
+              .fillColor('#0F172A')
+              .fontSize(8.5)
+              .font('Helvetica-Bold')
+              .text(`• Stage: ${hist.status} `, { continued: true })
+              .fillColor('#64748B')
+              .font('Helvetica')
+              .text(`(${dateStr} by ${changedBy})${noteStr}`);
+            doc.moveDown(0.3);
           });
         }
 

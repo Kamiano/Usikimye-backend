@@ -9,5 +9,6 @@ import { PdfGeneratorService } from './pdf-generator.service';
   imports: [PrismaModule, MailModule],
   controllers: [IncidentsController],
   providers: [IncidentsService, PdfGeneratorService],
+  exports: [IncidentsService, PdfGeneratorService],
 })
 export class IncidentsModule {}
