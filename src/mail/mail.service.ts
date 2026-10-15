@@ -334,7 +334,7 @@ export class MailService {
 
                 <!-- Call to Action -->
                 <div style="text-align: left; margin-bottom: 24px;">
-                  <a href="${appUrl}/admin/reports/${reportId}" target="_blank" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-size: 13px; font-weight: 500; text-decoration: none; padding: 12px 24px; border-radius: 6px; letter-spacing: 0.01em;">
+                  <a href="${appUrl}/admin/cases/${reportId}" target="_blank" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-size: 13px; font-weight: 500; text-decoration: none; padding: 12px 24px; border-radius: 6px; letter-spacing: 0.01em;">
                     View Case in Admin Dashboard &rarr;
                   </a>
                 </div>
